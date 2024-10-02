@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -9,17 +11,20 @@ from sensor_msgs.msg import Image
 
 
 class MediaPipePublisher(Node):
-    def __init__(self, model_path):
+    def __init__(self):
         super().__init__("mediapipe_gesture_publisher")
         self.publiser = self.create_publisher(Image, "/mediapipe_gesture", 10)
 
-        self.model_path = model_path
+        # TODO: Fix this
+        mediapipe_model_path = Path(
+            "/home/ws/src/mediapipe_ros_pkg/models/gesture_recognizer.task"
+        )
 
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
 
-        self.base_options = python.BaseOptions(model_asset_path=self.model_path)
+        self.base_options = python.BaseOptions(mediapipe_model_path)
         self.options = vision.GestureRecognizerOptions(base_options=self.base_options)
         self.recognizer = vision.GestureRecognizer.create_from_options(self.options)
 
@@ -53,7 +58,7 @@ class MediaPipePublisher(Node):
                 self.mp_drawing_styles.get_default_hand_connections_style(),
             )
 
-        # TODO: Fix this
+        # TODO: Send as Topic
         # try:
         #     top_gesture = recognition_result.gestures[0][0]
         #     self.ax.set_title(

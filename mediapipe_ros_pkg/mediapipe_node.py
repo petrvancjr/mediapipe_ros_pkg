@@ -1,28 +1,19 @@
-from pathlib import Path
-
 import rclpy
 
-from mediapipe_ros.mediapipe_publisher import MediaPipePublisher
-from mediapipe_ros.realsense_subscriber import RealsenseSubsctiber
-
-# TODO parameterize
-model_path = Path("/home/ws/models/gesture_recognizer.task")
+from mediapipe_ros_pkg.mediapipe_publisher import MediaPipePublisher
+from mediapipe_ros_pkg.realsense_subscriber import RealsenseSubsctiber
 
 
-def main():
-    rclpy.init(args=None)
+def main(args=None):
+    rclpy.init(args=args)
 
-    # TODO parameterize
-    mediapipe_publisher = MediaPipePublisher(
-        model_path=model_path,
-    )
-
+    mediapipe_publisher = MediaPipePublisher()
     realsense_subscriber = RealsenseSubsctiber(mediapipe_publisher.forward)
+
     rclpy.spin(realsense_subscriber)
 
     realsense_subscriber.destroy_node()
     mediapipe_publisher.destroy_node()
-
     rclpy.shutdown()
 
 
