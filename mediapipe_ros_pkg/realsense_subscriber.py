@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image
+from realsense2_camera_msgs.msg import RGBD
 
 
 class RealsenseSubsctiber(Node):
@@ -8,17 +8,14 @@ class RealsenseSubsctiber(Node):
         super().__init__("realsense_listener")
 
         self.subscription = self.create_subscription(
-            Image, "/camera/camera/color/image_raw", self.listener_callback, 10
+            RGBD, "/camera/camera/rgbd", self.listener_callback, 10
         )
         self.subscription
 
         self.callback = callback
 
-    def listener_callback(self, msg):
-        # self.get_logger().info(
-        #     f"Received an image with width={msg.width}, height={msg.height}"
-        # )
-        self.callback(msg)
+    def listener_callback(self, rgbd_msg):
+        self.callback(rgbd_msg)
 
 
 def main(args=None):
