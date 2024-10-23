@@ -1,3 +1,4 @@
+import warnings
 from copy import deepcopy
 from pathlib import Path
 
@@ -23,7 +24,7 @@ class MediaPipePublisher(Node):
             Image, "/mediapipe_gesture", 10
         )
 
-        # TODO: Fix this
+        # TODO: Fix hard code
         mediapipe_model_path = Path(
             "/home/ws/src/mediapipe_ros_pkg/models/gesture_recognizer.task"
         )
@@ -85,7 +86,6 @@ class MediaPipePublisher(Node):
             kf.x = np.zeros(kf.dim_x)
 
     def kalman_filter_update(self, object_points_dict, dt):
-        updated_object_points = {}
         for key, kf in self.kf_dict.items():
             # State transition matrix
             kf.F = np.array(
@@ -115,11 +115,13 @@ class MediaPipePublisher(Node):
                 if d_M2 < 9.21:
                     kf.update(z)
                 else:
-                    print(f"Mahalanobis distance: {d_M2}")
+                    print(f"Mahalanobis distance threshold: {d_M2}")
 
-            updated_object_points[key] = kf.H @ kf.x
-
-        return updated_object_points
+    def get_state(self):
+        object_points_dict = {}
+        for key, kf in self.kf_dict.items():
+            object_points_dict[key] = kf.H @ kf.x
+        return object_points_dict
 
     def forward(self, rgbd_msg):
         rgb_image_msg = rgbd_msg.rgb
@@ -128,7 +130,10 @@ class MediaPipePublisher(Node):
             data=self.bridge.imgmsg_to_cv2(rgb_image_msg, "rgb8"),
         )
 
-        recognition_result = self.recognizer.recognize(mp_image)
+        # TODO : https://stackoverflow.com/questions/78841248/userwarning-symboldatabase-getprototype-is-deprecated-please-use-message-fac
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            recognition_result = self.recognizer.recognize(mp_image)
 
         annotated_image = mp_image.numpy_view().copy()
 
@@ -188,43 +193,37 @@ class MediaPipePublisher(Node):
             else:
                 image_points_dict[landmark_idx] = None
 
-        object_points_dict = self.estimate_3d_coordinates(
-            image_points_dict, depth_image, depth_camera_info
-        )
-
         # Time stamp update
         if self.msg_timestamp is None or msg_timestamp - self.msg_timestamp > 1.0:
             self.kalman_filter_init()
             dt = 0.0
         else:
             dt = msg_timestamp - self.msg_timestamp
-
         self.msg_timestamp = msg_timestamp
 
-        # visualize line
-        try:
-            self.visualize_line(
-                rgb_image,
-                rgb_camera_info,
-                image_points_dict,
-                object_points_dict,
-                (0, 0, 0),
-            )
-        except:
-            pass
+        # Estimate 3D coordinates
+        object_points_dict = self.estimate_3d_coordinates(
+            image_points_dict, depth_image, depth_camera_info
+        )
+
+        self.visualize_line(
+            rgb_image,
+            rgb_camera_info,
+            image_points_dict,
+            object_points_dict,
+            (0, 0, 0),
+        )
 
         # Apply Kalman filter
-        try:
-            object_points_dict = self.kalman_filter_update(object_points_dict, dt)
-            self.visualize_line(
-                rgb_image,
-                rgb_camera_info,
-                image_points_dict,
-                object_points_dict,
-                (0, 0, 255),
-            )
-        except:
-            pass
+        self.kalman_filter_update(object_points_dict, dt)
+        object_points_dict = self.get_state()
+        self.visualize_line(
+            rgb_image,
+            rgb_camera_info,
+            image_points_dict,
+            object_points_dict,
+            (0, 0, 255),
+        )
 
     def estimate_3d_coordinates(self, image_points, depth_image, depth_camera_info):
         hand_landmarks_3d = {}
@@ -243,14 +242,14 @@ class MediaPipePublisher(Node):
             else:
                 pixel = [int(value[0]), int(value[1])]
 
-                # Crop around the pixel and get the depth value using the nearest 12.5% of the depth value
-                depth_value = depth_image[pixel[1], pixel[0]]
+                depth_value = self.get_state()[key][2]
                 if depth_value > 0:
-                    crop_size = max(
-                        1, int(1000 / depth_value)
-                    )  # Inverse proportion with depth value
+                    # Inverse proportion with depth value
+                    # TODO: Fix hard code
+                    crop_size = max(1, int(30 / depth_value))
                 else:
-                    crop_size = 7  # Default crop size if depth value is invalid
+                    crop_size = 1
+
                 half_crop_size = crop_size // 2
                 cropped_depth = depth_image[
                     max(0, pixel[1] - half_crop_size) : min(
@@ -260,14 +259,14 @@ class MediaPipePublisher(Node):
                         depth_image.shape[1] - 1, pixel[0] + half_crop_size + 1
                     ),
                 ]
-                valid_depths = cropped_depth[
-                    cropped_depth > 0
-                ]  # Filter out invalid depth values
 
+                # Filter out invalid depth values
+                valid_depths = cropped_depth[cropped_depth > 0]
+
+                # Crop around the pixel and get the depth value using the nearest 12.5% of the depth value
+                # TODO: Fix hard code
                 if valid_depths.size > 0:
-                    depth = np.percentile(
-                        valid_depths, 12.0
-                    )  # Use the nearest 12.0% depth value
+                    depth = np.percentile(valid_depths, 12.5)
                     point_3d = rs2_deproject_pixel_to_point(
                         _intrinsics, pixel, depth * 0.001
                     )
@@ -312,13 +311,16 @@ class MediaPipePublisher(Node):
         d = np.array(rgb_camera_info.d)
 
         # Solve PnP
-        retval, rvec, tvec = cv2.solvePnP(
-            object_points,
-            image_points.astype(self.dtype),
-            k,
-            d,
-            flags=cv2.SOLVEPNP_P3P,
-        )
+        try:
+            retval, rvec, tvec = cv2.solvePnP(
+                object_points,
+                image_points.astype(self.dtype),
+                k,
+                d,
+                flags=cv2.SOLVEPNP_P3P,
+            )
+        except cv2.error:
+            retval = False
 
         if retval:
             direction_vector, mean = self.pca(object_points)
