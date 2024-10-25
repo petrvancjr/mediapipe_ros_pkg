@@ -18,6 +18,9 @@ setup(
     license="MIT",
     tests_require=["pytest"],
     entry_points={
-        "console_scripts": ["mediapipe_node = mediapipe_ros_pkg.mediapipe_node:main"],
+        "console_scripts": [
+            "mediapipe_node = mediapipe_ros_pkg.mediapipe_node:main",
+            "mediapipe_toolbox_node = mediapipe_ros_pkg.gesture_toolbox_extension.mediapipe_toolbox_node:main",
+        ],        
     },
 )
