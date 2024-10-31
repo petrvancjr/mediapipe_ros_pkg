@@ -1,6 +1,6 @@
 
 from copy import deepcopy
-from mediapipe_ros_pkg.frame_lib import Vector, Frame, Hand, Finger, Bone
+from mediapipe_ros_pkg.gesture_toolbox_extension.frame_lib import Vector, Frame, Hand, Finger, Bone, LeapGestures
 import time
 import numpy as np
 
@@ -33,12 +33,13 @@ class CustomFrame(Frame):
             # Hand data
             self.l = CustomHand()
             self.r = CustomHand()
+        self.leapgestures = LeapGestures()
 
     def import_from_landmarks(self, seq, stamp, fps, hand_landmarks):
         self.seq = seq
         self.fps = fps
-        self.sec = stamp//1000000
-        self.nanosec = 1000*(stamp%1000000)
+        self.sec = int(stamp)
+        self.nanosec = int(1000000000*(stamp%1))
         self.hands = len(hand_landmarks)
 
         self.l, self.r = CustomHand(), CustomHand()

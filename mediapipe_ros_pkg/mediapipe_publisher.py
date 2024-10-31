@@ -26,7 +26,7 @@ class MediaPipePublisher(Node):
 
         # TODO: Fix hard code
         mediapipe_model_path = Path(
-            "/home/panda/panda_ws/src/mediapipe_ros_pkg/models/gesture_recognizer.task"
+            "/home/student/tellshow_ros2_ws/src/mediapipe_ros_pkg/models/gesture_recognizer.task"
             # "/home/ws/src/mediapipe_ros_pkg/models/gesture_recognizer.task"
         )
 
