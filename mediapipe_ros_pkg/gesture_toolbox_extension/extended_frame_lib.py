@@ -19,8 +19,6 @@ class FrameAdder():
 
 class CustomFrame(Frame):
     def __init__(self, seq, stamp, fps, hand_landmarks):
-        print("hand_landmarks")
-        print(hand_landmarks)
         if hand_landmarks:
             self.import_from_landmarks(seq, stamp, fps, hand_landmarks)
         else:
@@ -36,6 +34,15 @@ class CustomFrame(Frame):
         self.leapgestures = LeapGestures()
 
     def import_from_landmarks(self, seq, stamp, fps, hand_landmarks):
+        for h in range(len(hand_landmarks)):
+            hand = hand_landmarks[h]
+            for l in range(len(hand)):
+                lm = hand[l]
+                hand_landmarks[h][l].x = 1000 * -lm.x
+                y = lm.y
+                hand_landmarks[h][l].y = 1000 * lm.z
+                hand_landmarks[h][l].z = 1000 * -y
+                
         self.seq = seq
         self.fps = fps
         self.sec = int(stamp)

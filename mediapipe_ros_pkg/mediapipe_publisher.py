@@ -44,12 +44,7 @@ class MediaPipePublisher(Node):
 
         self.bridge = CvBridge()
 
-        self.exposed_landmarks = [
-            self.mp_hands.HandLandmark.INDEX_FINGER_MCP,
-            self.mp_hands.HandLandmark.INDEX_FINGER_PIP,
-            self.mp_hands.HandLandmark.INDEX_FINGER_DIP,
-            self.mp_hands.HandLandmark.INDEX_FINGER_TIP,
-        ]
+        self.exposed_landmarks = list(range(21))
 
         self.kalman_filter_config()
         self.msg_timestamp = None
